@@ -1,16 +1,23 @@
-from Src.reference import reference
+from src.models.abstract_reference import abstract_reference
 
 
-#
-# Типы событий
-#
-class event_type(reference):
- 
+# Класс для определения типов событий
+class event_type(abstract_reference):
+
     @staticmethod
     def changed_block_period() -> str:
         """
-            Событие изменения даты блокировки
+            Метод для получения строки-идентификатора события изменения даты блокировки.
         Returns:
-            str: _description_
+            str: Идентификатор события изменения даты блокировки.
         """
         return "changed_block_period"
+
+    @staticmethod
+    def deleted_nomenclature() -> str:
+        """
+            Метод для получения строки-идентификатора события удаления номенклатуры.
+        Returns:
+            str: Идентификатор события удаления номенклатуры.
+        """
+        return "deleted_nomenclature"

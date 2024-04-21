@@ -1,258 +1,137 @@
-from Src.Logics.Services.storage_service import storage_service
-from Src.Logics.start_factory import start_factory
-from Src.settings_manager import settings_manager
-from Src.Storage.storage import storage
-from Src.exceptions import operation_exception
-from Src.Logics.Services.reference_service import reference_service
-from Src.Logics.convert_factory import convert_factory
-from Src.Models.nomenclature_model import nomenclature_model
-from Src.Logics.storage_observer import storage_observer
-from Src.Models.event_type import event_type
+from pathlib import Path
+import os
+import sys
 
+sys.path.append(os.path.join(Path(__file__).parent.parent, 'src'))
+
+from settings_manager import settings_manager
 from datetime import datetime
+from storage.storage import storage
+from Logic.start_factory import start_factory
+from src.Logic.services.storage_sevice import storage_service
+from src.Logic.storage_observer import storage_observer
+from src.models.event_type import event_type
+from error_proxy import error_proxy
+from exceptions import argument_exception, operation_exception
+from src.Logic.services.nomenclature_service import nomenclature_service
 import unittest
-import uuid
 
-class service_test(unittest.TestCase):
-    #
-    # Проверить добавление reference (номенклатура)
-    #
-    def test_check_add_item_reference(self):
+
+class test_sevice(unittest.TestCase):
+
+    # проверка работы получения оборота
+    def test_check_get_block_turns(self):
         # Подготовка
-        manager = settings_manager()
-        start = start_factory(manager.settings)
-        start.create()
-        key = storage.nomenclature_key()
-        data = start.storage.data[ key ]
-        convert = convert_factory()
+        unit = settings_manager()
+        address = os.path.join(Path(__file__).parent.parent, 'Jsons')
+        unit.open('Tester.json', address)
+        factory = start_factory(unit.settings)
+        # при factory create автоматически сохраняет
+        factory.create()
 
-        if len(data) == 0:
-            raise operation_exception("Некорректно сформирован набор данных!")
-        
-        # Создаем новый элемент номенклатуры
-        dict =  convert.serialize( data[0] )
-        item = nomenclature_model().load(dict)
-        item.id = uuid.uuid4()
+        key = storage.journal_key()
+        sevice = storage_service(factory.storage.data[key])
+        sevice.options = unit.settings
 
-        service = reference_service(data)
-        start_len = len(data)
+        # действие
+        res = sevice.create_blocked_turns()
 
-        # Действие
-        result = service.add( item )
+        # проверка
+        assert res is not None
+        assert len(res) > 0
+        assert res[0].storage_id == factory.storage.data[storage.b_turn_key()][0].storage_id
 
-        # Проверка
-        assert result == True
-        assert len(data) - 1 == start_len
-
-    # 
-    # Проверить изменение reference (номенклатуры)
-    #
-    def test_check_change_item_reference(self):
+    def test_check_date_turns(self):
         # Подготовка
-        manager = settings_manager()
-        start = start_factory(manager.settings)
-        start.create()
-        key = storage.nomenclature_key()
-        data = start.storage.data[ key ]
-        convert = convert_factory()
+        unit = settings_manager()
+        address = os.path.join(Path(__file__).parent.parent, 'Jsons')
+        unit.open('Tester.json', address)
+        unit.settings.block_period = "2024-1-1"
+        factory = start_factory(unit.settings)
+        # при factory create автоматически сохраняет
+        factory.create()
 
-        if len(data) == 0:
-            raise operation_exception("Некорректно сформирован набор данных!")
-        
-        # Создаем новый элемент номенклатуры
-        dict =  convert.serialize( data[0] )
-        item = nomenclature_model().load(dict)
-        item.name = "test"
+        key = storage.journal_key()
+        sevice = storage_service(factory.storage.data[key])
+        sevice.options = unit.settings
 
-        service = reference_service(data)
-        start_len = len(data)
+        # действие
+        sevice.create_blocked_turns()
+        res = sevice.create_turns(datetime(2022, 1, 1), datetime(2024, 1, 2)
 
-        # Действие
-        result = service.change( item )
+        # проверка
+        print(res)
+        assert res is not None
+        assert len(res) > 0
 
-        # Проверка
-        assert result == True
-        assert len(data) == start_len
+    def test_check_date_turns_nom(self):
+        # Подготовка
+        unit = settings_manager()
+        address = os.path.join(Path(__file__).parent.parent, 'Jsons')
+        unit.open('Tester.json', address)
+        unit.settings.block_period = "2024-1-1"
+        factory = start_factory(unit.settings)
+        # при factory create автоматически сохраняет
+        factory.create()
 
+        key = storage.journal_key()
+        sevice = storage_service(factory.storage.data[key])
+        sevice.options = unit.settings
 
-    #
-    # Проверить работу метода create_turns
-    #
-    def test_check_create_turns(self):
-        # Подготовка
-        manager = settings_manager()
-        start = start_factory(manager.settings)
-        start.create()
-        key = storage.storage_transaction_key()
-        data = start.storage.data[ key ]
-        service = storage_service(data)
-        start_date = datetime.strptime("2024-01-01", "%Y-%m-%d")
-        stop_date = datetime.strptime("2024-01-10", "%Y-%m-%d")
-        
-        # Действие
-        result = service.create_turns(start_date, stop_date)
-        
-        # Проверки
-        assert len(result) > 0
-        
-    #
-    # Проверить метод     create_turns_by_nomenclature
-    #
-    def test_check_create_turns_by_nomenclature(self):
-        # Подготовка
-        manager = settings_manager()
-        start = start_factory(manager.settings)
-        start.create()
-        key = storage.storage_transaction_key()
-        data = start.storage.data[ key ]
-        service = storage_service(data)
-        start_date = datetime.strptime("2024-01-01", "%Y-%m-%d")
-        stop_date = datetime.strptime("2024-01-30", "%Y-%m-%d")
-        
-        if len(data) == 0:
-            raise operation_exception("Набор данных пуст!")
-        
-        nomenclature = data[0].nomenclature 
-        
-        # Действие
-        result = service.create_turns_by_nomenclature(start_date, stop_date, nomenclature )
-        
-        # Проверки
-        assert len(result) == 1
-            
-    #
-    # Проверить метод  turns_only_nomenclature
-    #    
-    def test_check_create_turns_only_nomenclature(self):
-        # Подготовка
-        manager = settings_manager()
-        start = start_factory(manager.settings)
-        start.create()
-        key = storage.storage_transaction_key()
-        data = start.storage.data[ key ]
-        service = storage_service(data)
-        
-        if len(data) == 0:
-            raise operation_exception("Набор данных пуст!")
-        
-        nomenclature = data[0].nomenclature 
-        
-        # Действие
-        result = service.create_turns_only_nomenclature( nomenclature )
-        
-        # Проверки
-        assert len(result) > 0
-        
-    #
-    # Проверить работу метода    create_turns_by_receipt
-    # 
-    def test_check_create_turns_by_receipt(self):
-        # Подготовка
-        manager = settings_manager()
-        start = start_factory(manager.settings)
-        start.create()
-        key = storage.storage_transaction_key()
-        transactions_data = start.storage.data[ key ]
-        service = storage_service(transactions_data)
-        
-        if len(transactions_data) == 0:
-            raise operation_exception("Набор данных пуст!")
-        
-        key = storage.receipt_key()
-        receipts_data = start.storage.data[ key ]
-        
-        if len(receipts_data) == 0:
-            raise operation_exception("Набор данных пуст!")
-        
-        receipt = receipts_data[0]
-        
-        # Действие
-        result = service.create_turns_by_receipt(receipt)
-        
-        # Проверки
-        assert len(result) > 0
-        
-    #
-    # Проверить метод  build_debits_by_receipt. Ошибочный сценарий.
-    #   
-    def test_check_build_debits_by_receipt_fail(self):
-        # Подготовка
-        manager = settings_manager()
-        start = start_factory(manager.settings)
-        start.create()
-        key = storage.storage_transaction_key()
-        transactions_data = start.storage.data[ key ]
-        service = storage_service(transactions_data)
-        
-        if len(transactions_data) == 0:
-            raise operation_exception("Набор данных пуст!")
-        
-        key = storage.receipt_key()
-        receipts_data = start.storage.data[ key ]
-        
-        if len(receipts_data) == 0:
-            raise operation_exception("Набор данных пуст!")
-        
-        # -> Цезарь с курицей
-        receipt = receipts_data[1]
-        
-        # Действие и проверка
-        with self.assertRaises(operation_exception):
-            service.build_debits_by_receipt( receipt )
-            
-            
-    #
-    # Проверить метод  build_debits_by_receipt. Корректный сценарий
-    #   
-    def test_check_build_debits_by_receipt_pass(self):
-        # Подготовка
-        manager = settings_manager()
-        start = start_factory(manager.settings)
-        start.create()
-        key = storage.storage_transaction_key()
-        transactions_data = start.storage.data[ key ]
-        start_len_transaction = len(transactions_data)
-        service = storage_service(transactions_data)
-        
-        if len(transactions_data) == 0:
-            raise operation_exception("Набор данных пуст!")
-        
-        key = storage.receipt_key()
-        receipts_data = start.storage.data[ key ]
-        
-        if len(receipts_data) == 0:
-            raise operation_exception("Набор данных пуст!")
-        
-        # -> Вафли хрустящие в вафильнице
-        receipt = receipts_data[0]
-        
-        # Действие и проверка
-        service.build_debits_by_receipt( receipt ) 
-        stop_len_transaction = len(start.storage.data[  storage.storage_transaction_key() ])
-          
-        # Проверка (транзакций должно быть больше)   
-        assert start_len_transaction < stop_len_transaction   
-        
-    
+        # действие
+        sevice.create_blocked_turns()
+        res = sevice.create_turns_by_nomenclature(datetime(2022, 1, 1), datetime(2024, 1, 2),
+                                                  factory.storage.data[storage.nomenclature_key()][4].id)
+
+        # проверка
+        print(res)
+        assert res is not None
+        assert len(res) > 0
+
     def test_check_observer_blocked_period(self):
         # Подготовка
-        manager = settings_manager()
-        start = start_factory(manager.settings)
-        start.create()
-        key = storage.storage_transaction_key()
-        transactions_data = start.storage.data[ key ]
+        unit = settings_manager()
+        address = os.path.join(Path(__file__).parent.parent, 'Jsons')
+        unit.open('Tester.json', address)
+        unit.settings.block_period = "2024-1-1"
+        factory = start_factory(unit.settings)
+        factory.create()
+        key = storage.journal_key()
+        transactions_data = factory.storage.data[key]
         service = storage_service(transactions_data)
-          
-        
+
         # Действие
         try:
-            storage_observer.raise_event(  event_type.changed_block_period()  )
-            pass
+            storage_observer.raise_event(event_type.changed_block_period())
+            assert True
         except Exception as ex:
             print(f"{ex}")
-            
-        
-             
-            
-        
-        
+
+    def test_check_delete_nom_observer(self):
+        # Подготовка
+        unit = settings_manager()
+        address = os.path.join(Path(__file__).parent.parent, 'Jsons')
+        unit.open('Tester.json', address)
+        unit.settings.block_period = "2024-1-1"
+        factory = start_factory(unit.settings)
+        # при factory create автоматически сохраняет
+        factory.create()
+
+        key = storage.nomenclature_key()
+        sevice = nomenclature_service(factory.storage.data[key])
+
+        controll_rec = list(factory.storage.data[storage.reciepe_key()][0].ingridient_proportions.keys())
+        controll_journal = factory.storage.data[storage.journal_key()]
+        controll_blocked = factory.storage.data[storage.b_turn_key()]
+
+        # действие
+        print(factory.storage.data[key][0].name, factory.storage.data[key][0].id)
+        factory.storage.data[key], res = sevice.delete_nom(str(factory.storage.data[key][0].id))
+
+        # проверка
+        print(res)
+        print(controll_rec, list(factory.storage.data[storage.reciepe_key()][0].ingridient_proportions.keys()))
+
+        assert controll_rec != list(factory.storage.data[storage.reciepe_key()][0].ingridient_proportions.keys())
+        assert controll_journal != factory.storage.data[storage.journal_key()]
+        assert controll_blocked != factory.storage.data[storage.b_turn_key()]

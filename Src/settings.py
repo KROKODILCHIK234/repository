@@ -1,103 +1,79 @@
-from Src.exceptions import exception_proxy, argument_exception
-from Src.Logics.storage_observer import storage_observer
-from Src.Models.event_type import event_type
+from exceptions import argument_exception, operation_exception
 from datetime import datetime
+from src.Logic.storage_observer import storage_observer
+from src.models.event_type import event_type
 
-#
-# Класс для описания настроек
-#
-class settings():
-    _inn = 0
-    _short_name = ""
-    _first_start = True
-    _mode = "csv"
-    _block_period = datetime.now
-    
-    
-    @property
-    def inn(self):
-        """
-            ИНН
-        Returns:
-            int: 
-        """
-        return self._inn
-    
-    @inn.setter
-    def inn(self, value: int):
-        exception_proxy.validate(value, int)
-        self._inn = value
-         
-    @property     
-    def short_name(self):
-        """
-            Короткое наименование организации
-        Returns:
-            str:
-        """
-        return self._short_name
-    
-    @short_name.setter
-    def short_name(self, value:str):
-        exception_proxy.validate(value, str)
-        self._short_name = value
-        
-        
-    @property    
-    def is_first_start(self):
-        """
-           Флаг Первый старт
-        """
-        return self._first_start    
-            
-    @is_first_start.setter        
-    def is_first_start(self, value: bool):
-        self._first_start = value
-        
-    @property
-    def report_mode(self):
-        """
-            Режим построения отчетности
-        Returns:
-            _type_: _description_
-        """
-        return self._mode
-    
-    
-    @report_mode.setter
-    def report_mode(self, value: str):
-        exception_proxy.validate(value, str)
-        
-        self._mode = value
-    
+
+# Класс для хранения настроек
+class settings:
+    __first_name = ""
+    __first_start = True
+
+    # Переменные для настроек
+    __block_period = datetime(1, 1, 1)
+    __INN = ""
+    __account = ""
+    __correspond_account = ""
+    __BIK = ""
+    __name = ""
+    __property_type = ""
+    __report_type = ""
+
+    # Форматы отчетов
+    __Report_format = {"CSV": "", "Markdown": "", "Json": ""}
 
     @property
-    def block_period(self):
-        """
-            Дата блокировки периода
-        """
-        return self._block_period
-    
+    def Report_format(self):
+        return self.__Report_format
+
+    @property
+    def first_name(self):
+        return self.__first_name
+
+    @first_name.setter
+    def first_name(self, value: str):
+        # Устанавливаем полное имя
+        if not isinstance(value, str):
+            raise argument_exception("Некорректный аргумент!")
+
+        self.__first_name = value.strip()
+
+    @property
+    def report_type(self):
+        return self.__report_type
+
+    @report_type.setter
+    def report_type(self, value: str):
+        # Устанавливаем тип отчета
+        if not isinstance(value, str):
+            raise argument_exception("Некорректный аргумент!")
+
+        self.__report_type = value.strip()
+
+    # Методы для установки и получения свойств
+
+    # ...
+
     @block_period.setter
-    def block_period(self, value):
-        legacy_period = self._block_period
-        
-        if isinstance(value, datetime):
-            self._block_period = value
-            
-            if legacy_period != self._block_period:
-                storage_observer.raise_event(  event_type.changed_block_period()  )    
+    def block_period(self, value: str):
+        # Установка периода блокировки
+        if not isinstance(value, str):
+            raise argument_exception("Некорректный аргумент")
 
-            return
+        # Проверка формата даты
+        try:
+            value = value.split(' ')[0]
 
-        if isinstance(value, str):
-            try:
-               self._block_period = datetime.strptime(value, "%Y-%m-%d")    
-               if legacy_period != self._block_period:
-                    storage_observer.raise_event(  event_type.changed_block_period()  )    
-            except Exception as ex:
-                raise argument_exception(f"Невозможно сконвертировать сроку в дату! {ex}")
-        else:
-            raise argument_exception("Некорректно переданы параметры!")
-            
-    
+            legacy = self.__block_period
+
+            self.__block_period = datetime.strptime(value, "%Y-%m-%d")
+
+            if legacy != self.__block_period:
+                storage_observer.raise_event(event_type.changed_block_period())
+
+        except Exception as ex:
+            raise operation_exception(f'Не удалось сконвертировать дату: {ex}')
+
+    # Метод для установки строки в виде даты (block_period)
+    # while True:
+    # ...
